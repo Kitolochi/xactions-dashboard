@@ -4,39 +4,15 @@ import fs from "fs";
 
 let db: Database | null = null;
 
-const WASM_URL =
-  "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.wasm";
-
-async function loadWasm(): Promise<Buffer> {
-  // Try local node_modules first
-  const localPath = path.join(
-    process.cwd(),
-    "node_modules",
-    "sql.js",
-    "dist",
-    "sql-wasm.wasm"
-  );
-  try {
-    if (fs.existsSync(localPath)) {
-      return fs.readFileSync(localPath);
-    }
-  } catch {
-    // Fall through to fetch
-  }
-
-  // Fetch from CDN
-  const res = await fetch(WASM_URL);
-  if (!res.ok) throw new Error(`Failed to fetch WASM: ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
-}
-
 export async function getDb(): Promise<Database> {
   if (db) return db;
 
-  const wasmBinary = await loadWasm();
+  const base = process.cwd();
+  const wasmPath = path.join(base, "public", "data", "sql-wasm.wasm");
+  const wasmBinary = fs.readFileSync(wasmPath);
   const SQL = await initSqlJs({ wasmBinary });
 
-  const dbPath = path.join(process.cwd(), "public", "data", "xactions.db");
+  const dbPath = path.join(base, "public", "data", "xactions.db");
   const buffer = fs.readFileSync(dbPath);
   db = new SQL.Database(buffer);
   return db;
