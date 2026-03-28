@@ -7,38 +7,14 @@ let db: Database | null = null;
 export async function getDb(): Promise<Database> {
   if (db) return db;
 
-  const SQL = await initSqlJs();
+  // Use CDN WASM on Vercel (no local .wasm file in serverless)
+  const SQL = await initSqlJs({
+    locateFile: () =>
+      "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.wasm",
+  });
 
-  // Try filesystem first (works locally and during build)
-  const candidates = [
-    path.join(process.cwd(), "public", "data", "xactions.db"),
-    path.join(process.cwd(), ".next", "server", "public", "data", "xactions.db"),
-    "/var/task/public/data/xactions.db",
-  ];
-
-  let buffer: Buffer | null = null;
-  for (const p of candidates) {
-    try {
-      if (fs.existsSync(p)) {
-        buffer = fs.readFileSync(p);
-        break;
-      }
-    } catch {
-      // Try next path
-    }
-  }
-
-  // Fallback: fetch from own public URL
-  if (!buffer) {
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/data/xactions.db`);
-    if (!res.ok) throw new Error(`Failed to fetch DB: ${res.status}`);
-    const arrayBuffer = await res.arrayBuffer();
-    buffer = Buffer.from(arrayBuffer);
-  }
-
+  const dbPath = path.join(process.cwd(), "public", "data", "xactions.db");
+  const buffer = fs.readFileSync(dbPath);
   db = new SQL.Database(buffer);
   return db;
 }
